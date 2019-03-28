@@ -1,0 +1,57 @@
+---
+title: "transfordata"
+author: "Leo Zhao"
+date: "2019/1/31"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(dplyr)
+load("Data/data.rdata")
+mydata
+```
+
+```{r,include = FALSE}
+claimNumberdata = mydata[,c("year","Q","RiskClass","Type","CarYearsOfExposure","NBI","NPD","NC","NCO","NPI")]
+
+claimAmountdata = mydata[,c("year","Q","RiskClass","Type","CarYearsOfExposure","AMBI","AMPD","AMC","AMCO","AMPI")]
+
+names(claimNumberdata) = c("Year","Quarter","RiskClass","Type","CarYearsOfExposure","BI","PD","C","CO","PI")
+names(claimAmountdata) = c("Year","Quarter","RiskClass","Type","CarYearsOfExposure","BI","PD","C","CO","PI")
+
+TclaimNumberdata = claimNumberdata %>% gather(key = InsuranceType,value = NumberOfClaim,BI,PD,C,CO,PI)
+TclaimAmountdata = claimAmountdata %>% gather(key = InsuranceType,value = AmountOfClaim,BI,PD,C,CO,PI)
+
+data = inner_join(TclaimNumberdata,TclaimAmountdata)
+data
+```
+
+```{r}
+# Create a time variable according to the year and quarter. 
+library(zoo)
+data$time = paste(data$Year," Q",data$Quarter)
+data$time = as.yearqtr(data$time)
+data$time = as.numeric(data$time)
+# separate the riskclass and create three new risk variable
+for(i in 1:length(data$RiskClass)){
+data$VechicleSize[i] = str_split(data$RiskClass[i],pattern = "")[[1]][1]
+data$DriverAge[i] = str_split(data$RiskClass[i],pattern = "")[[1]][2]
+data$DriverRisk[i] = str_split(data$RiskClass[i],pattern = "")[[1]][3]
+}
+```
+```{r}
+library(plyr)
+data$VechicleSize = factor(data$VechicleSize,levels = c("S","M","L"),ordered = TRUE)
+data$VechicleSize = revalue(data$VechicleSize,c("S" = "Small","M"= "Medium","L"="Large"))
+data$DriverAge = factor(data$DriverAge,levels = c("Y","M","S"),ordered = TRUE)
+data$DriverAge = revalue(data$DriverAge,c("Y" = "Young","M" = "Middle","S" = "Senior"))
+data$DriverRisk = factor(data$DriverRisk,levels = c("L","A","H"),ordered = TRUE)
+data$DriverRisk = revalue(data$DriverRisk,c("L" = "Low","A" = "Average","H"= "High"))
+data$InsuranceType = revalue(data$InsuranceType,c("BI" = "BodilyInjury","C" = "Comprehensive","CO" = "Collision","PI" = "PersonalInjury","PD" = "PropertyDamage"))
+data
+```
+```{r}
+save(data,file = "data/transfordata.rdata")
+```
+
+
